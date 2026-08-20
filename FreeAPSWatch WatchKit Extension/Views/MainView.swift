@@ -107,6 +107,12 @@ struct MainView: View {
                         Text("--").font(.caption2).foregroundColor(.gray)
                     }
                 }
+                // A long press, matching the loop indicator on the phone: running a cycle
+                // can change insulin delivery, so it must not happen on an accidental tap.
+                .onLongPressGesture {
+                    WKInterfaceDevice.current().play(.start)
+                    state.requestLoop()
+                }
             }
             Spacer()
             HStack(alignment: .firstTextBaseline) {

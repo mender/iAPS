@@ -3850,3 +3850,9 @@ Enact a temp Basal or a temp target */
 
 /* LibreLinkUp CGM type subtitle */
 "Libre values from the Abbott cloud, including the Russian region" = "Libre values from the Abbott cloud, including the Russian region";
+
+/* No glucose data */
+"No glucose data" = "No glucose data";
+
+/* No new glucose values for more than %d min */
+"No new glucose values for more than %d min" = "No new glucose values for more than %d min";

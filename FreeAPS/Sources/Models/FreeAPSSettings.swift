@@ -82,6 +82,7 @@ struct FreeAPSSettings: JSON, Equatable {
     var ascendingAlert: Bool = true
     var descendingAlert: Bool = true
     var carbsRequiredAlert: Bool = true
+    var glucoseStaleAlert: Bool = true
     //
     var profilesOrTempTargets: Bool = false
     var allowBolusShortcut: Bool = false
@@ -536,6 +537,10 @@ extension FreeAPSSettings: Decodable {
 
         if let missingLoops = try? container.decode(Bool.self, forKey: .missingLoops) {
             settings.missingLoops = missingLoops
+        }
+
+        if let glucoseStaleAlert = try? container.decode(Bool.self, forKey: .glucoseStaleAlert) {
+            settings.glucoseStaleAlert = glucoseStaleAlert
         }
 
         if let profilesOrTempTargets = try? container.decode(Bool.self, forKey: .profilesOrTempTargets) {

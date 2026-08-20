@@ -35,6 +35,8 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
         case carbsRequiredNotification = "FreeAPS.carbsRequiredNotification"
         case noLoopFirstNotification = "FreeAPS.noLoopFirstNotification"
         case noLoopSecondNotification = "FreeAPS.noLoopSecondNotification"
+        case noGlucoseFirstNotification = "FreeAPS.noGlucoseFirstNotification"
+        case noGlucoseSecondNotification = "FreeAPS.noGlucoseSecondNotification"
         case bolusFailedNotification = "FreeAPS.bolusFailedNotification"
         case pumpNotification = "FreeAPS.pumpNotification"
     }
@@ -169,6 +171,51 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
         }
     }
 
+    /// Warns that readings stopped arriving. Every new reading reschedules the pending
+    /// notifications, so they only ever fire once the data actually dries up.
+    private func scheduleMissingGlucoseNotifications(lastReadingDate: Date?) {
+        let identifiers: [Identifier] = [.noGlucoseFirstNotification, .noGlucoseSecondNotification]
+
+        guard settingsManager.settings.glucoseStaleAlert else {
+            DispatchQueue.main.async {
+                self.center.removePendingNotificationRequests(withIdentifiers: identifiers.map(\.rawValue))
+            }
+            return
+        }
+
+        let sound = settingsManager.settings.missingLoops
+        let intervals = [Self.staleGlucoseFirstInterval, Self.staleGlucoseSecondInterval]
+        // Count from the reading itself: a value can reach the app several minutes old.
+        let age = lastReadingDate.map { Date().timeIntervalSince($0) } ?? 0
+
+        ensureCanSendNotification {
+            let title = NSLocalizedString("No glucose data", comment: "No glucose data")
+            let body = NSLocalizedString(
+                "No new glucose values for more than %d min",
+                comment: "No new glucose values for more than %d min"
+            )
+
+            for (identifier, interval) in zip(identifiers, intervals) {
+                let content = UNMutableNotificationContent()
+                content.title = title
+                content.body = String(format: body, interval)
+                if sound { content.sound = .default }
+
+                let delay = max(TimeInterval(interval) * 60 - age, 1)
+
+                self.addRequest(
+                    identifier: identifier,
+                    content: content,
+                    deleteOld: true,
+                    trigger: UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false)
+                )
+            }
+        }
+    }
+
+    private static let staleGlucoseFirstInterval = 10 // min
+    private static let staleGlucoseSecondInterval = 30 // min
+
     private func notifyBolusFailure() {
         let sound = settingsManager.settings.bolusFailure
         ensureCanSendNotification {
@@ -201,6 +248,8 @@ final class BaseUserNotificationsManager: NSObject, UserNotificationsManager, In
         addAppBadge(glucose: nil)
 
         let glucose = glucoseStorage.retrieveRaw()
+        scheduleMissingGlucoseNotifications(lastReadingDate: glucose.last?.dateString)
+
         guard let lastGlucose = glucose.last, let glucoseValue = lastGlucose.glucose else { return }
 
         addAppBadge(glucose: lastGlucose.glucose)

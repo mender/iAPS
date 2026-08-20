@@ -18,6 +18,7 @@ final class BaseWatchManager: NSObject, WatchManager, Injectable {
     @Injected() private var tempTargetsStorage: TempTargetsStorage!
     @Injected() private var garmin: GarminManager!
     @Injected() private var nightscout: NightscoutManager!
+    @Injected() private var appCoordinator: AppCoordinator!
 
     let coreDataStorage = CoreDataStorage()
 
@@ -82,6 +83,20 @@ final class BaseWatchManager: NSObject, WatchManager, Injectable {
             self.state.glucose = glucoseValues.glucose
             self.state.trend = glucoseValues.trend
             self.state.delta = glucoseValues.delta
+            // The watch chart covers the same period as the main chart on the phone.
+            // Readings arrive newest first; the chart draws them left to right.
+            let chartHours = max(self.settingsManager.settings.hours, 1)
+            let chartStart = Date().addingTimeInterval(-Double(chartHours) * 3600) as NSDate
+            self.state.glucoseHistory = self.coreDataStorage.fetchGlucose(interval: chartStart)
+                .reversed()
+                .compactMap { reading in
+                    guard let date = reading.date else { return nil }
+                    return WatchGlucosePoint(date: date, value: self.displayGlucose(Decimal(Int(reading.glucose))))
+                }
+            self.state.lowGlucose = self.displayGlucose(self.settingsManager.settings.lowGlucose)
+            self.state.highGlucose = self.displayGlucose(self.settingsManager.settings.highGlucose)
+            self.state.veryHighGlucose = self.displayGlucose(BaseWatchManager.veryHighGlucose)
+            self.state.units = self.settingsManager.settings.units.rawValue
             self.state.trendRaw = self.convertTrendToDirectionText(trend: glucoseValues.trend)
             self.state.glucoseDate = readings.first?.date ?? .distantPast
             self.state.glucoseDateInterval = self.state.glucoseDate.map {
@@ -201,10 +216,28 @@ final class BaseWatchManager: NSObject, WatchManager, Injectable {
 
         garmin.sendState(data)
 
+        // The application context is delivered even when the watch app is not running,
+        // which is what keeps the complications on the watch face up to date.
+        if session.activationState == .activated {
+            do {
+                try session.updateApplicationContext([WatchStateKey.state: data])
+            } catch {
+                warning(.service, "Cannot update watch application context", error: error)
+            }
+        }
+
         guard session.isReachable else { return }
         session.sendMessageData(data, replyHandler: nil) { error in
             warning(.service, "Cannot send message to watch", error: error)
         }
+    }
+
+    /// Same cut-off the home screen chart uses to switch a high reading from yellow to red.
+    private static let veryHighGlucose: Decimal = 198
+
+    private func displayGlucose(_ mgdl: Decimal) -> Double {
+        let value = settingsManager.settings.units == .mmolL ? mgdl.asMmolL : mgdl
+        return Double(truncating: value as NSNumber)
     }
 
     private func glucoseText(_ glucose: [Readings]) -> (glucose: String, trend: String, delta: String) {
@@ -451,6 +484,13 @@ extension BaseWatchManager: WCSessionDelegate {
 
     func session(_: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         debug(.service, "WCSession got message with reply handler: \(message)")
+
+        if let loop = message["loop"] as? Bool, loop {
+            // Same trigger the loop indicator on the phone uses on a long press.
+            appCoordinator.sendHeartbeat()
+            replyHandler(["confirmation": true])
+            return
+        }
 
         if let carbs = message["carbs"] as? Double,
            let fat = message["fat"] as? Double,

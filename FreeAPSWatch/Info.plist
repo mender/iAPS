@@ -4,5 +4,7 @@
 <dict>
 	<key>CFBundleName</key>
 	<string>$(APP_ICON)</string>
+	<key>AppGroupID</key>
+	<string>$(APP_GROUP_ID)</string>
 </dict>
 </plist>

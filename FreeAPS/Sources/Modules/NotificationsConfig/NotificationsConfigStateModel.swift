@@ -30,6 +30,7 @@ extension NotificationsConfig {
         @Published var ascendingAlert = true
         @Published var descendingAlert = true
         @Published var carbsRequiredAlert = true
+        @Published var glucoseStaleAlert = true
 
         @Published var alarmSound: String = "New/Anticipalte.caf"
 
@@ -58,6 +59,7 @@ extension NotificationsConfig {
             subscribeSetting(\.ascendingAlert, on: $ascendingAlert) { ascendingAlert = $0 }
             subscribeSetting(\.descendingAlert, on: $descendingAlert) { descendingAlert = $0 }
             subscribeSetting(\.carbsRequiredAlert, on: $carbsRequiredAlert) { carbsRequiredAlert = $0 }
+            subscribeSetting(\.glucoseStaleAlert, on: $glucoseStaleAlert) { glucoseStaleAlert = $0 }
             subscribeSetting(\.lowGlucose, on: $lowGlucose, initial: {
                 let value = max(min($0, 400), 40)
                 lowGlucose = units == .mmolL ? value.asMmolL : value

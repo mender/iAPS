@@ -126,6 +126,7 @@ extension NotificationsConfig {
                     Toggle("Ascending", isOn: $state.ascendingAlert)
                     Toggle("Descending", isOn: $state.descendingAlert)
                     Toggle("Carbs required", isOn: $state.carbsRequiredAlert)
+                    Toggle("No glucose data", isOn: $state.glucoseStaleAlert)
                     Toggle("Also play alert sound", isOn: $state.useAlarmSound)
                 } header: { Text("Enable") }
 

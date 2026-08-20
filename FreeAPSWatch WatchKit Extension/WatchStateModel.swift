@@ -2,6 +2,7 @@ import Combine
 import Foundation
 import SwiftUI
 import WatchConnectivity
+import WidgetKit
 
 enum AwConfig: String, CaseIterable, Identifiable, Codable {
     var id: String { rawValue }
@@ -66,6 +67,7 @@ class WatchStateModel: NSObject, ObservableObject {
     @Published var eventualGlucose: Decimal?
     @Published var deltaBG: Decimal?
     @Published var minPredBG: Decimal?
+    @Published var glucoseHistory: [WatchGlucosePoint] = []
 
     private var lifetime = Set<AnyCancellable>()
     private var confirmationTimeout: AnyCancellable?
@@ -142,6 +144,20 @@ class WatchStateModel: NSObject, ObservableObject {
         }
     }
 
+    /// Asks the phone to run a full loop cycle, the same action a long press on the loop
+    /// indicator performs there.
+    func requestLoop() {
+        confirmationSuccess = nil
+        isConfirmationViewActive = true
+
+        session.sendMessage(["loop": true], replyHandler: completionHandler) { error in
+            print("WatchStateModel loop request error: " + error.localizedDescription)
+            DispatchQueue.main.async {
+                self.confirmation(false)
+            }
+        }
+    }
+
     func requestState() {
         guard session.activationState == .activated else {
             session.activate()
@@ -206,7 +222,16 @@ class WatchStateModel: NSObject, ObservableObject {
         deltaBG = state.deltaBG
         minPredBG = state.minPredBG
 
+        glucoseHistory = state.glucoseHistory
+
         override = state.override
+
+        // The widget on the watch face reads from the shared container and has to be told
+        // that something changed.
+        SharedWatchState.save(state)
+        if #available(watchOS 9.0, *) {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 }
 
@@ -223,10 +248,24 @@ extension WatchStateModel: WCSessionDelegate {
     }
 
     func session(_: WCSession, didReceiveMessageData messageData: Data) {
-        if let state = try? JSONDecoder().decode(WatchState.self, from: messageData) {
-            DispatchQueue.main.async {
-                self.processState(state)
-            }
+        guard let state = try? JSONDecoder().decode(WatchState.self, from: messageData) else { return }
+
+        DispatchQueue.main.async {
+            self.processState(state)
+        }
+    }
+
+    /// Arrives even when the watch app is not running, so this is the path that keeps the
+    /// watch face current.
+    func session(_: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+        guard let data = applicationContext[WatchStateKey.state] as? Data,
+              let state = try? JSONDecoder().decode(WatchState.self, from: data)
+        else {
+            return
+        }
+
+        DispatchQueue.main.async {
+            self.processState(state)
         }
     }
 }
