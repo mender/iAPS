@@ -73,6 +73,7 @@ _Please note that in default builds of iAPS, the app group is actually identical
     * FreeAPS
     * FreeAPS watchkitapp
     * FreeAPS watchkitapp watchkitextension
+    * FreeAPSWatchWidget
 1. Click on the identifier's name.
 1. On the "App Groups" capabilies, click on the "Configure" button.
 1. Select the "Loop App Group" _(yes, "Loop App Group" is correct)_

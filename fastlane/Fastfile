@@ -75,6 +75,7 @@ platform :ios do
         "#{APP_IDENTIFIER}",
         "#{APP_IDENTIFIER}.watchkitapp",
         "#{APP_IDENTIFIER}.watchkitapp.watchkitextension",
+        "#{APP_IDENTIFIER}.watchkitapp.widget",
         "#{APP_IDENTIFIER}.LiveActivity"
       ]
     )
@@ -87,7 +88,8 @@ platform :ios do
     [
       "#{APP_IDENTIFIER}",
       "#{APP_IDENTIFIER}.watchkitapp",
-      "#{APP_IDENTIFIER}.watchkitapp.watchkitextension"
+      "#{APP_IDENTIFIER}.watchkitapp.watchkitextension",
+      "#{APP_IDENTIFIER}.watchkitapp.widget"
     ].each do |id|
       profile_path = ENV["sigh_#{id}_appstore_profile-path"]
       if profile_path.nil? || !File.exist?(profile_path)
@@ -143,6 +145,13 @@ platform :ios do
       code_sign_identity: "iPhone Distribution",
       targets: ["FreeAPSWatch"]
     )
+    update_code_signing_settings(
+      path: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
+      profile_name: mapping["#{APP_IDENTIFIER}.watchkitapp.widget"],
+      code_sign_identity: "iPhone Distribution",
+      targets: ["FreeAPSWatchWidget"]
+    )
+
     update_code_signing_settings(
       path: "#{GITHUB_WORKSPACE}/FreeAPS.xcodeproj",
       profile_name: mapping["#{APP_IDENTIFIER}.LiveActivity"],
@@ -221,6 +230,10 @@ platform :ios do
       Spaceship::ConnectAPI::BundleIdCapability::Type::HEALTHKIT
     ])
 
+    configure_bundle_id("FreeAPSWatchWidget", "#{APP_IDENTIFIER}.watchkitapp.widget", [
+      Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS
+    ])
+
     configure_bundle_id("LiveActivityExtension", "#{APP_IDENTIFIER}.LiveActivity", [
       Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS
     ])
@@ -248,6 +261,7 @@ platform :ios do
         "#{APP_IDENTIFIER}",
         "#{APP_IDENTIFIER}.watchkitapp.watchkitextension",
         "#{APP_IDENTIFIER}.watchkitapp",
+        "#{APP_IDENTIFIER}.watchkitapp.widget",
         "#{APP_IDENTIFIER}.LiveActivity"
       ]
     )
