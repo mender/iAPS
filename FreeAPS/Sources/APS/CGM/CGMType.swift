@@ -11,6 +11,7 @@ enum CGMType: String, JSON, CaseIterable, Identifiable {
     case eversense
     case simulator
     case libreTransmitter
+    case libreLinkUp
     case glucoseDirect
     case enlite
 
@@ -34,6 +35,8 @@ enum CGMType: String, JSON, CaseIterable, Identifiable {
             return NSLocalizedString("Glucose Simulator", comment: "Glucose Simulator CGM type")
         case .libreTransmitter:
             return NSLocalizedString("Libre Transmitter", comment: "Libre Transmitter type")
+        case .libreLinkUp:
+            return "LibreLinkUp"
         case .enlite:
             return "Medtronic Enlite"
         }
@@ -43,6 +46,7 @@ enum CGMType: String, JSON, CaseIterable, Identifiable {
         switch self {
         case .enlite,
              .eversense,
+             .libreLinkUp,
              .nightscout,
              .simulator:
             return nil
@@ -95,6 +99,11 @@ enum CGMType: String, JSON, CaseIterable, Identifiable {
                 "Direct connection with Libre 1 transmitters or European Libre 2 sensors",
                 comment: "Direct connection with Libre 1 transmitters or European Libre 2 sensors"
             )
+        case .libreLinkUp:
+            return NSLocalizedString(
+                "Libre values from the Abbott cloud, including the Russian region",
+                comment: "LibreLinkUp CGM type subtitle"
+            )
         case .glucoseDirect:
             return NSLocalizedString(
                 "Using shared app group with external CGM app GlucoseDirect",
@@ -112,7 +121,8 @@ enum CGMType: String, JSON, CaseIterable, Identifiable {
             return 10 * secondsOfDay
         case .dexcomG7:
             return 10.5 * secondsOfDay
-        case .libreTransmitter:
+        case .libreLinkUp,
+             .libreTransmitter:
             return 14.5 * secondsOfDay
         case .enlite:
             return 6 * secondsOfDay
@@ -140,6 +150,7 @@ extension CGMType {
         case .dexcomG7: return "G7CGMManager"
         case .simulator: return "MockCGMManager"
         case .libreTransmitter: return "LibreTransmitterManager"
+        case .libreLinkUp: return "LibreLinkUpCGM"
         case .eversense: return "EversenseCGM"
         case .glucoseDirect: return "GlucoseDirectCGM" // if available
         case .xdrip: return "xDripCGM" // if available

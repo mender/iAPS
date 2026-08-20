@@ -41,3 +41,6 @@
 [submodule "EversenseKit"]
 	path = EversenseKit
 	url = https://github.com/Artificial-Pancreas/EversenseKit
+[submodule "LibreLinkUpCGM"]
+	path = LibreLinkUpCGM
+	url = git@github.com:mender/LibreLinkUpCGM.git

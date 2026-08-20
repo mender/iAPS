@@ -280,6 +280,20 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "AB0000000000000000000011"
+               BuildableName = "LibreLinkUpCGMPlugin.loopplugin"
+               BlueprintName = "LibreLinkUpCGMPlugin"
+               ReferencedContainer = "container:LibreLinkUpCGM/LibreLinkUpCGM.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "388E595725AD948C0019842D"
                BuildableName = "FreeAPS.app"
                BlueprintName = "FreeAPS"

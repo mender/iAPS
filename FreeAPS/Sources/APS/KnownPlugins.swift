@@ -2,6 +2,7 @@ import CGMBLEKit
 import EversenseKit
 import Foundation
 import G7SensorKit
+import LibreLinkUpCGM
 import LibreTransmitter
 import LoopKit
 import MedtrumKit
@@ -31,11 +32,24 @@ enum KnownPlugins {
         case G6CGMManager.pluginIdentifier: 10 * secondsOfDay
         case G7CGMManager.pluginIdentifier: 10.5 * secondsOfDay
         case LibreTransmitterManagerV3.pluginIdentifier: libreExpirationSeconds
+        case LibreLinkUpCGM.pluginIdentifier: libreLinkUpExpirationSeconds(cgmManager)
         case MinimedPumpManager.pluginIdentifier: 6 * secondsOfDay
         case EversenseCGMManager
             .pluginIdentifier: (((cgmManager as? EversenseCGMManager)?.state.is365 ?? false) ? 365 : 180) * secondsOfDay
         default: nil
         }
+    }
+
+    /// Libre 2 runs for 14 days and Libre 2 Plus for 15; the plugin derives which one it is
+    /// from the sensor metadata LibreLinkUp reports.
+    static func libreLinkUpExpirationSeconds(_ cgmManager: CGMManager) -> TimeInterval? {
+        guard let state = (cgmManager as? LibreLinkUpCGM)?.state,
+              let activatedAt = state.sensorActivatedAt,
+              let expiresAt = state.sensorExpiresAt
+        else {
+            return nil
+        }
+        return expiresAt.timeIntervalSince(activatedAt)
     }
 
     static var libreExpirationSeconds: TimeInterval? {
@@ -55,6 +69,8 @@ enum KnownPlugins {
             return (cgmManager as? G7CGMManager)?.sensorFinishesWarmupAt
         case LibreTransmitterManagerV3.pluginIdentifier:
             return (cgmManager as? LibreTransmitterManagerV3)?.sensorInfoObservable.activatedAt
+        case LibreLinkUpCGM.pluginIdentifier:
+            return (cgmManager as? LibreLinkUpCGM)?.state.sensorActivatedAt
         case EversenseCGMManager.pluginIdentifier:
             return (cgmManager as? EversenseCGMManager)?.state.activatedAt
         default:
@@ -83,6 +99,7 @@ enum KnownPlugins {
         case G7CGMManager.pluginIdentifier: return CGMType.dexcomG7.rawValue
         case EversenseCGMManager.pluginIdentifier: return CGMType.eversense.rawValue
         case LibreTransmitterManagerV3.pluginIdentifier: return CGMType.libreTransmitter.rawValue
+        case LibreLinkUpCGM.pluginIdentifier: return CGMType.libreLinkUp.rawValue
         case NightscoutRemoteCGM.pluginIdentifier: return CGMType.nightscout.rawValue
         case MockCGMManager.pluginIdentifier: return CGMType.simulator.rawValue
         case MinimedPumpManager.pluginIdentifier: return CGMType.enlite.rawValue
@@ -151,6 +168,17 @@ enum KnownPlugins {
             guard let cgmManager = cgmManager as? LibreTransmitterManagerV3,
                   let batteryLevel = cgmManager.batteryLevel else { return nil }
             return GlucoseSourceInfo(description: nil, transmitterBattery: batteryLevel)
+
+        case LibreLinkUpCGM.pluginIdentifier:
+            guard let state = (cgmManager as? LibreLinkUpCGM)?.state else { return nil }
+            var parts = ["Region: \(state.region.rawValue.uppercased())"]
+            if let patient = state.patientName {
+                parts.append("patient: \(patient)")
+            }
+            if let serial = state.sensorSerial {
+                parts.append("sensor: \(serial)")
+            }
+            return GlucoseSourceInfo(description: parts.joined(separator: ", "), transmitterBattery: nil)
 
         case AppGroupCGM.pluginIdentifier:
             var description = "Group ID: \(Bundle.main.appGroupSuiteName ?? "Not set")"

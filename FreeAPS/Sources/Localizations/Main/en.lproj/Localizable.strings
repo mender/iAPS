@@ -3847,3 +3847,6 @@ Enact a temp Basal or a temp target */
 "too small temp basal amount" = "too small temp basal amount";
 "⚠️ Warning! The entered insulin amount is greater than your Max Bolus setting!" = "⚠️ Warning! The entered insulin amount is greater than your Max Bolus setting!";
 " Target Glucose" = " Target Glucose";
+
+/* LibreLinkUp CGM type subtitle */
+"Libre values from the Abbott cloud, including the Russian region" = "Libre values from the Abbott cloud, including the Russian region";

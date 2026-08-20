@@ -38,6 +38,9 @@
       location = "group:NightscoutRemoteCGM/NightscoutRemoteCGM.xcodeproj">
    </FileRef>
    <FileRef
+      location = "group:LibreLinkUpCGM/LibreLinkUpCGM.xcodeproj">
+   </FileRef>
+   <FileRef
       location = "group:TidepoolService/TidepoolService.xcodeproj">
    </FileRef>
    <FileRef
