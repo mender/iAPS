@@ -11,7 +11,7 @@ jobs:
 
   identifiers:
     needs: validate
-    runs-on: macos-latest
+    runs-on: ${{ vars.MACOS_RUNNER || 'macos-26-intel' }}
     steps:
       
       # Checks-out the repo

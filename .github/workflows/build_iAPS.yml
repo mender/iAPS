@@ -68,7 +68,7 @@ jobs:
   build:
     name: Build
     needs: [check_certs,check_latest_from_upstream]
-    runs-on: macos-latest
+    runs-on: ${{ vars.MACOS_RUNNER || 'macos-26-intel' }}
     permissions:
       contents: write
     steps:
