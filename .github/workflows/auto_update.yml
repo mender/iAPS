@@ -1,0 +1,101 @@
+name: 6. Auto Update TestFlight
+run-name: Auto Update TestFlight
+
+# Keeps the app in TestFlight from expiring (TestFlight builds expire after 90
+# days) by rebuilding the commit that was last uploaded to TestFlight by
+# "4. Build iAPS", whatever branch it came from. Nothing is merged or updated.
+#
+#   1. Finds the newest "4. Build iAPS" run whose "Fastlane upload to TestFlight"
+#      step succeeded, and takes its commit and upload time.
+#   2. When that upload is MAX_BUILD_AGE_DAYS old (or force_build is set),
+#      re-creates the tag `testflight/current` on that commit and starts
+#      "4. Build iAPS" on the tag, so exactly that commit is built with its own
+#      workflow files.
+#
+# GitHub disables scheduled workflows after 60 days without repository
+# activity. Re-creating the tag on every rebuild (every MAX_BUILD_AGE_DAYS)
+# is that activity, so no separate keep-alive branch is needed.
+#
+# Scheduled workflows only run from the repository's default branch, so this
+# file must be on the default branch.
+
+on:
+  schedule:
+    - cron: '17 4 * * *' # daily, 04:17 UTC; a build starts only when one is due
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: Rebuild the last uploaded commit now
+        type: boolean
+        default: false
+
+env:
+  BUILD_WORKFLOW: build_iAPS.yml
+  BUILD_JOB: Build
+  UPLOAD_STEP: Fastlane upload to TestFlight
+  RELEASE_TAG: testflight/current
+  MAX_BUILD_AGE_DAYS: 28
+
+concurrency:
+  group: auto-update-testflight
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Rebuild last TestFlight upload
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Find last upload and start a build when due
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_PAT: ${{ secrets.GH_PAT }} # creates the tag; may point at commits that change workflows
+          GH_REPO: ${{ github.repository }}
+          FORCE: ${{ inputs.force_build }}
+        run: |
+          set -euo pipefail
+          summary() { echo "$*" | tee -a "$GITHUB_STEP_SUMMARY"; }
+
+          ACTIVE=$(gh api "repos/$GH_REPO/actions/workflows/$BUILD_WORKFLOW/runs?event=workflow_dispatch&per_page=20" \
+                     --jq '[.workflow_runs[] | select(.status != "completed")] | length')
+          if [ "$ACTIVE" -gt 0 ]; then
+            summary "A \"$BUILD_WORKFLOW\" build is already queued or running."
+            exit 0
+          fi
+
+          SHA="" REF="" UPLOADED=""
+          while read -r ID RUN_SHA RUN_REF; do
+            [ -n "$ID" ] || continue
+            DONE=$(gh api "repos/$GH_REPO/actions/runs/$ID/jobs" --jq \
+              '.jobs[] | select(.name == env.BUILD_JOB) | .steps[] | select(.name == env.UPLOAD_STEP and .conclusion == "success") | .completed_at' \
+              2>/dev/null | head -1 || true)
+            if [ -n "$DONE" ]; then
+              SHA=$RUN_SHA REF=$RUN_REF UPLOADED=$DONE
+              break
+            fi
+          done < <(gh api "repos/$GH_REPO/actions/workflows/$BUILD_WORKFLOW/runs?status=success&per_page=50" \
+                     --jq '.workflow_runs[] | "\(.id) \(.head_sha) \(.head_branch)"')
+
+          if [ -z "$SHA" ]; then
+            echo "::error::No \"$BUILD_WORKFLOW\" run with a successful TestFlight upload was found."
+            exit 1
+          fi
+
+          AGE=$(( ( $(date +%s) - $(date -d "$UPLOADED" +%s) ) / 86400 ))
+          summary "Last TestFlight upload: commit \`${SHA:0:8}\` from \`$REF\`, $UPLOADED ($AGE day(s) ago)."
+
+          if [ "$FORCE" = "true" ]; then REASON="manual request"
+          elif [ "$AGE" -ge "$MAX_BUILD_AGE_DAYS" ]; then REASON="last upload is $AGE days old"
+          else
+            summary "No build needed (rebuild after $MAX_BUILD_AGE_DAYS days)."
+            exit 0
+          fi
+
+          # Delete and create (not move) the tag: each rebuild is then a new push to
+          # the repository, which keeps this schedule from being disabled.
+          GH_TOKEN=$GH_PAT gh api -X DELETE "repos/$GH_REPO/git/refs/tags/$RELEASE_TAG" >/dev/null 2>&1 || true
+          GH_TOKEN=$GH_PAT gh api -X POST "repos/$GH_REPO/git/refs" -f ref="refs/tags/$RELEASE_TAG" -f sha="$SHA" >/dev/null
+
+          gh workflow run "$BUILD_WORKFLOW" --ref "$RELEASE_TAG"
+          summary "Started \"$BUILD_WORKFLOW\" on tag \`$RELEASE_TAG\` (\`${SHA:0:8}\`): $REASON."
